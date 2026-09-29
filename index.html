@@ -104,8 +104,8 @@ footer code{color:var(--muted)}
 .map-legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted)}
 .map-legend .lg{display:flex;align-items:center;gap:7px}
 .map-legend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:var(--attr)}
-.map-box{width:100%;height:380px;background:#e8ebef}
-.map-box.tall{height:520px}
+.map-box{width:100%;height:640px;background:#e8ebef}
+.map-box.tall{height:760px}
 .leaflet-popup-content{font-family:var(--font);font-size:12.5px;line-height:1.6}
 .leaflet-popup-content b{color:var(--text)}
 .popup-detail-btn{margin-top:8px;border:0;background:var(--text);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer}
@@ -152,7 +152,7 @@ footer code{color:var(--muted)}
   main{padding:16px 14px 40px} footer{margin-left:0;padding:20px 14px 26px}
   .topbar h1{font-size:29px} .section-label h2{font-size:22px}
   .filters{flex-direction:column;align-items:stretch} .filters .hint{margin-left:0}
-  .map-box{height:300px} .map-box.tall{height:380px}
+  .map-box{height:460px} .map-box.tall{height:560px}
   .post-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:430px){
@@ -257,9 +257,9 @@ footer code{color:var(--muted)}
         <label>表示件数
           <select id="viewerLimit">
             <option value="8">上位8件</option>
-            <option value="16" selected>上位16件</option>
+            <option value="16">上位16件</option>
             <option value="32">上位32件</option>
-            <option value="999">すべて（スコア&gt;0）</option>
+            <option value="999" selected>すべて（スコア&gt;0）</option>
           </select>
         </label>
         <span class="hint" id="viewerHint"></span>
@@ -271,7 +271,7 @@ footer code{color:var(--muted)}
             <span class="lg"><i class="dot"></i>DROP投稿</span>
           </div>
         </div>
-        <div id="dropMap" class="map-box"></div>
+        <div id="dropMap" class="map-box tall"></div>
       </div>
       <div id="dropCount" class="empty-note" style="margin-top:14px"></div>
       <div id="post-grid" class="post-grid"></div>
