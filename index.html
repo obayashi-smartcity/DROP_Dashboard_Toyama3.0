@@ -198,11 +198,11 @@ footer code{color:var(--muted)}
         </label>
         <span class="hint">属性集計は account_id ベースのユニーク参加者数で算出。左サイドバーのフィルタで絞り込んだ結果に連動します。</span>
       </div>
-      <div class="section-label"><h2>KPI<span class="note">フィルタ適用後の集計</span></h2></div>
+      <div class="section-label"><h2>KPI<span class="note">フィルタ適用後の集計（account_id ユニークカウント）</span></h2></div>
       <section class="grid kpis">
-        <div class="card kpi"><span class="k-label">総ユニーク参加者数</span><b class="k-val" id="k_total">-</b><span class="k-cap">account_id 重複排除</span></div>
-        <div class="card kpi c-attr"><span class="k-label">まちなか肯定的評価率</span><b class="k-val" id="k_positive">-</b><span class="k-cap" id="k_positive_cap">とても＋やや感じている</span></div>
-        <div class="card kpi c-acq"><span class="k-label">総アクション数</span><b class="k-val" id="k_actions">-</b><span class="k-cap">スタンプ・投稿の件数合計</span></div>
+        <div class="card kpi"><span class="k-label">総参加者数</span><b class="k-val" id="k_total">-</b><span class="k-cap">STAMP＋DROP合算・account_id 重複排除</span></div>
+        <div class="card kpi c-attr"><span class="k-label">総DROP投稿者数</span><b class="k-val" id="k_drop_users">-</b><span class="k-cap">account_id 重複排除</span></div>
+        <div class="card kpi c-acq"><span class="k-label">総スタンプ取得者数</span><b class="k-val" id="k_stamp_users">-</b><span class="k-cap">account_id 重複排除</span></div>
       </section>
       <div class="section-label"><h2>属性分布<span class="note">ユーザー属性 × アンケート回答</span></h2></div>
       <section class="grid cross">
@@ -491,16 +491,9 @@ function renderSummary(){
   const combinedRaw = ds==='all' ? [...stamp, ...drop] : (ds==='stamp' ? stamp : drop);
   const users = uniqueByAccount(combinedRaw);
 
-  el('k_total').textContent = fmt(users.length);
-  el('k_actions').textContent = fmt(combinedRaw.length);
-
-  const responded = users.filter(u=>u.questionnaire_q4);
-  if(responded.length){
-    const positive = responded.filter(u=>u.questionnaire_q4==='とても感じている'||u.questionnaire_q4==='やや感じている').length;
-    el('k_positive').textContent = (positive/responded.length*100).toFixed(1)+'%';
-  } else {
-    el('k_positive').textContent = '-';
-  }
+  el('k_total').textContent = fmt(uniqueByAccount([...stamp, ...drop]).length);
+  el('k_drop_users').textContent = fmt(uniqueByAccount(drop).length);
+  el('k_stamp_users').textContent = fmt(uniqueByAccount(stamp).length);
 
   const ageOrder=['10代','20代','30代','40代','50代','60代','70代','80代'];
   renderCategory('x_age', users, 'age_group', false, ageOrder);
