@@ -192,14 +192,14 @@ footer code{color:var(--muted)}
    ============================================================= */
 const CONFIG = {
   // 読み込むCSV（HTMLと同じフォルダに置く）
-  DATA_FILE: 'MART_DROP_JoinAttribute_scored_exploded2.0_spot2.0.csv',
+  DATA_FILE: 'MART_DROP_JoinAttribute_scored(画像込判定)_spot2.0_attach.csv',
 
   // 列名
   POST_ID_COL: 'artwork_id',      // 投稿を一意に識別する列（無ければ先頭列を自動使用）
   LAT_COL:     'latitude',
   LNG_COL:     'longitude',
   INDEX_COL:   'index',           // 指標名
-  SCORE_COL:   'score',           // 指標スコア
+  SCORE_COL:   'index_score',           // 指標スコア
   SPOT_COL:    '表示スポット名',
   DIST_COL:    'スポット距離_m',   // 表示スポットまでの距離（CSVの値をそのまま使用）
   POPUP_COLS:  ['sentence', 'account_name', 'age_group', 'gender'], // ポップアップ表示列（無い列は無視）
