@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>富山まちなかイベント DROP 表示スポットマップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{
+  --bg:#eef0f3; --panel:#fff; --stroke:#e2e6ea; --text:#1f2733; --muted:#5b636c; --dim:#8b949e;
+  --attr:#3f66b3; --acq:#2f8f66; --gray:#64748b;
+  --gap:18px; --sidebar-w:300px;
+  --font:"Inter","Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh}
+.sidebar{background:#fff;border-right:1px solid var(--stroke);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.brand{font-weight:900;font-size:21px;line-height:1.05;letter-spacing:-.5px}
+.brand span{color:var(--gray)}
+.brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:1.5px;margin-top:6px;font-weight:700}
+.cap{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim);margin:22px 4px 8px}
+.filter-actions{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filter-actions button{font-size:10.5px;font-weight:700;padding:6px 9px;border:1px solid var(--stroke);background:#fff;color:var(--muted);border-radius:5px;cursor:pointer}
+.filter-actions button:hover{background:var(--bg);color:var(--text)}
+.filter-hint{font-size:10.5px;color:var(--dim);line-height:1.6;margin:0 2px 10px}
+.spot-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding-right:4px}
+.spot-item{display:grid;grid-template-columns:16px 12px 1fr auto;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);cursor:pointer;padding:4px;border-radius:4px;line-height:1.35}
+.spot-item:hover{background:var(--bg);color:var(--text)}
+.spot-item input{margin:0;accent-color:var(--attr)}
+.spot-item .sw{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.spot-item .cnt{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+.spot-item.zero{opacity:.45}
+.side-foot{flex:0 0 auto;font-size:10.5px;color:var(--dim);line-height:1.6;padding-top:10px;border-top:1px solid var(--stroke);margin-top:8px}
+main{padding:24px 28px 48px;min-width:0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.topbar h1{font-size:34px;font-weight:900;margin:0;letter-spacing:-.7px}
+.topbar p{font-size:12.5px;color:var(--muted);margin:7px 0 0}
+.status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--stroke);padding:8px 14px;border-radius:999px;white-space:nowrap}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.pulse.ok{background:var(--acq);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,143,102,.5)}70%{box-shadow:0 0 0 8px rgba(47,143,102,0)}100%{box-shadow:0 0 0 0 rgba(47,143,102,0)}}
+.filters{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:#fff;padding:14px 18px;margin-bottom:18px;border-top:2px solid rgba(100,116,139,.55)}
+.filters label.tg{font-size:12px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+.filters label.tg input{accent-color:var(--attr)}
+.filters .hint{margin-left:auto;font-size:11.5px;color:var(--dim);max-width:520px;line-height:1.6}
+.flt-block{display:flex;flex-direction:column;gap:6px}
+.flt-block .ttl{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.idx-box{position:relative}
+.idx-btn{min-width:240px;text-align:left;padding:8px 30px 8px 10px;background:#fff;border:1px solid var(--stroke);font-family:var(--font);font-size:13px;color:var(--text);cursor:pointer}
+.idx-panel{display:none;position:absolute;z-index:2000;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid var(--stroke);box-shadow:0 6px 20px rgba(31,39,51,.15);padding:10px;width:300px;max-height:360px;overflow-y:auto}
+.idx-panel.open{display:block}
+.idx-panel label{display:flex;gap:7px;align-items:center;font-size:12px;color:var(--muted);padding:3px 0;cursor:pointer}
+.idx-panel input{accent-color:var(--attr)}
+.score-in{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.score-in input{width:70px;padding:7px 8px;border:1px solid var(--stroke);font-family:var(--font);font-size:13px}
+.flt-row{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;width:100%}
+.flt-row + .flt-row{padding-top:12px;border-top:1px solid var(--stroke)}
+.match-tag{display:inline-block;background:var(--bg);border-radius:3px;padding:1px 6px;margin:2px 3px 0 0;font-size:11px}
+.error{display:none;color:#b42318;background:#fff;padding:14px 18px;border-top:2px solid #b42318;margin-bottom:16px;font-size:13px;line-height:1.7}
+.section-label{display:flex;align-items:baseline;gap:12px;margin:34px 2px 14px;flex-wrap:wrap}
+.section-label h2{margin:0;font-size:26px;font-weight:900;letter-spacing:-.4px}
+.section-label .note{font-size:11px;color:var(--dim);font-weight:500}
+.grid{display:grid;gap:var(--gap)}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--panel);padding:20px}
+.kpi{border-top:3px solid var(--gray)}
+.kpi.c-attr{border-top-color:var(--attr)} .kpi.c-acq{border-top-color:var(--acq)} .kpi.c-warn{border-top-color:#c2410c}
+.kpi .k-label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;display:block}
+.kpi .k-val{display:block;font-size:30px;font-weight:800;margin:9px 0 3px;letter-spacing:-.5px;font-variant-numeric:tabular-nums;color:var(--gray)}
+.kpi.c-attr .k-val{color:var(--attr)} .kpi.c-acq .k-val{color:var(--acq)} .kpi.c-warn .k-val{color:#c2410c}
+.kpi .k-cap{font-size:11px;color:var(--dim)}
+.map-card{padding:0;overflow:hidden;margin-top:var(--gap)}
+.map-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:18px 20px 14px}
+.map-head h3{margin:0;font-size:14.5px;font-weight:800}
+.map-legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.map-legend .lg{display:flex;align-items:center;gap:7px}
+.map-legend .dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:var(--attr);border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+.map-legend .pin{width:12px;height:12px;display:inline-block;background:#fff;border:3px solid var(--text);transform:rotate(45deg)}
+.map-legend .hull{width:16px;height:11px;display:inline-block;background:rgba(63,102,179,.18);border:1.5px dashed var(--attr)}
+.map-legend .vor{width:16px;height:0;display:inline-block;border-top:2px dashed #1f2733}
+.map-box{width:100%;height:720px;background:#e8ebef}
+.leaflet-popup-content{font-family:var(--font);font-size:12.5px;line-height:1.6}
+.spot-pin{width:14px;height:14px;background:#fff;border:3px solid #1f2733;transform:rotate(45deg);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.spot-label{background:rgba(255,255,255,.92);border:1px solid var(--stroke);box-shadow:none;font-family:var(--font);font-size:10.5px;font-weight:700;color:var(--text);padding:2px 6px}
+.spot-label::before{display:none}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--stroke);text-align:left}
+th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;background:#fafbfc;position:sticky;top:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.clickable{cursor:pointer} tr.clickable:hover{background:#f6f7f9}
+.sw-inline{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.table-wrap{max-height:520px;overflow-y:auto}
+.bar{height:8px;background:var(--attr);border-radius:2px}
+.badge-warn{color:#c2410c;font-weight:700}
+footer{padding:26px 28px 30px;margin-left:var(--sidebar-w);color:var(--dim);font-size:11px;text-align:center;line-height:1.7}
+footer code{color:var(--muted)}
+@media (max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:760px){.app{grid-template-columns:1fr}.sidebar{display:none}main{padding:16px 14px 40px}footer{margin-left:0}.map-box{height:500px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">TOYAMA<span>.</span><small>DROP SPOT MAPPING</small></div>
+    <div class="cap" style="margin-top:18px">表示スポット名（複数選択可）</div>
+    <div class="filter-actions">
+      <button type="button" id="selAll">すべて選択</button>
+      <button type="button" id="selNone">すべて解除</button>
+      <button type="button" id="selUsed">該当ありのみ</button>
+    </div>
+    <p class="filter-hint">色＝表示スポット名。数字は現在の index / score 条件に当てはまる投稿数です。</p>
+    <div id="spotList" class="spot-list"></div>
+    <div class="side-foot">富山まちなかイベント<br>DROP投稿 × 表示スポット割り当て確認</div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div><h1>DROP Spot Map</h1><p>投稿地点に割り当てた「表示スポット名」を、index／score で絞り込んで地図上で確認</p></div>
+      <div class="status"><span id="pulse" class="pulse"></span><span id="statusText">CSV 読み込み中…</span></div>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div class="filters">
+      <div class="flt-row">
+        <div class="flt-block">
+          <span class="ttl">index（指標・複数選択可）</span>
+          <div class="idx-box">
+            <button type="button" class="idx-btn" id="idxBtn">すべて ▾</button>
+            <div class="idx-panel" id="idxPanel">
+              <div class="filter-actions"><button type="button" id="idxAll">すべて選択</button><button type="button" id="idxNone">すべて解除</button></div>
+              <div id="idxList"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flt-block">
+          <span class="ttl">score（範囲）</span>
+          <div class="score-in"><input type="number" id="scoreMin" step="1"> 以上 ～ <input type="number" id="scoreMax" step="1"> 以下</div>
+        </div>
+        <span class="hint" id="filterHint"></span>
+      </div>
+      <div class="flt-row">
+        <label class="tg"><input type="checkbox" id="tgPoints" checked>投稿地点</label>
+        <label class="tg"><input type="checkbox" id="tgHull" checked>割り当て範囲（実投稿の外周）</label>
+        <label class="tg"><input type="checkbox" id="tgVoronoi">勢力圏（最寄り判定の境界線）</label>
+        <label class="tg"><input type="checkbox" id="tgSpots" checked>スポット位置</label>
+        <label class="tg"><input type="checkbox" id="tgLabels">スポット名ラベル常時表示</label>
+        <span class="hint" id="fileHint"></span>
+      </div>
+    </div>
+
+    <section class="grid kpis">
+      <div class="card kpi"><span class="k-label">投稿数</span><b class="k-val" id="k_posts">-</b><span class="k-cap" id="k_posts_cap">ユニーク投稿</span></div>
+      <div class="card kpi c-attr"><span class="k-label">条件該当・地図表示</span><b class="k-val" id="k_shown">-</b><span class="k-cap">index／score 条件＋選択中スポット</span></div>
+      <div class="card kpi c-acq"><span class="k-label">該当スポット数</span><b class="k-val" id="k_spots">-</b><span class="k-cap">条件該当の投稿がある表示スポット名</span></div>
+      <div class="card kpi c-warn"><span class="k-label">要確認（距離）</span><b class="k-val" id="k_warn">-</b><span class="k-cap" id="k_warn_cap">-</span></div>
+    </section>
+
+    <div class="card map-card">
+      <div class="map-head">
+        <h3>表示スポット割り当てマップ</h3>
+        <div class="map-legend">
+          <span class="lg"><i class="dot"></i>投稿地点（色＝表示スポット名）</span>
+          <span class="lg"><i class="hull"></i>割り当て範囲</span>
+          <span class="lg"><i class="vor"></i>勢力圏の境界</span>
+          <span class="lg"><i class="pin"></i>スポット位置（マスタ）</span>
+        </div>
+      </div>
+      <div id="map" class="map-box"></div>
+    </div>
+
+    <div class="section-label"><h2>Spot Summary<span class="note">index／score 条件に該当する投稿で集計・行クリックで地図をズーム</span></h2></div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>表示スポット名</th><th style="width:90px">投稿数</th><th style="width:26%"></th><th style="width:120px">平均score</th><th style="width:130px">平均距離(m)</th><th style="width:130px">最大距離(m)</th></tr></thead>
+          <tbody id="spotTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<footer id="footer"></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+<script>
+/* =============================================================
+   ★ 設定（ファイル名が変わったら DATA_FILE だけ書き換えればOK）
+   ============================================================= */
+const CONFIG = {
+  // 読み込むCSV（HTMLと同じフォルダに置く）
+  DATA_FILE: 'MART_DROP_JoinAttribute_scored(画像込判定)_spot2.0_attach.csv',
+
+  // 列名
+  POST_ID_COL: 'artwork_id',      // 投稿を一意に識別する列（無ければ先頭列を自動使用）
+  LAT_COL:     'latitude',
+  LNG_COL:     'longitude',
+  INDEX_COL:   'index',           // 指標名
+  SCORE_COL:   'index_score',           // 指標スコア
+  SPOT_COL:    '表示スポット名',
+  DIST_COL:    'スポット距離_m',   // 表示スポットまでの距離（CSVの値をそのまま使用）
+  POPUP_COLS:  ['sentence', 'account_name', 'age_group', 'gender'], // ポップアップ表示列（無い列は無視）
+
+  // 初期表示の score 下限（null ならデータの最小値）
+  DEFAULT_SCORE_MIN: 5,
+
+  WARN_DISTANCE_M: 300,           // この距離(m)超を「要確認」
+  MAP_CENTER: [36.6975, 137.2135],
+  MAP_ZOOM: 15,
+};
+
+/* スポットマスタ（表示スポット名・緯度・経度）
+   ※ マスタを更新した場合はここを差し替え。同じ表示スポット名は同じ色になる */
+const SPOT_MASTER=[
+  {"id": "SP-00000003", "name": "YKKAPアリーナ", "lat": 36.7067976, "lng": 137.2143664, "linked": true},
+  {"id": "SP-00000002", "name": "富山市親水広場", "lat": 36.7070341, "lng": 137.214648, "linked": true},
+  {"id": "SP-00000001", "name": "富山駅北3X3バスケットコート", "lat": 36.7063395, "lng": 137.2156128, "linked": true},
+  {"id": "SP00000000", "name": "富山駅南口駅前広場 / 南北自由通路", "lat": 36.7013074, "lng": 137.2128648, "linked": true},
+  {"id": "SP00000001", "name": "富山MAIRO", "lat": 36.6991993, "lng": 137.212956, "linked": true},
+  {"id": "SP00000002", "name": "富山県民小劇場ORBIS", "lat": 36.7005207, "lng": 137.2139768, "linked": true},
+  {"id": "SP00000003", "name": "バール・デ・美富味", "lat": 36.7009599, "lng": 137.2121888, "linked": true},
+  {"id": "SP00000004", "name": "マリエとやま６階 芝生広場", "lat": 36.7005336, "lng": 137.2138507, "linked": true},
+  {"id": "SP00000005", "name": "富山駅南北自由通路", "lat": 36.7014189, "lng": 137.2132177, "linked": true},
+  {"id": "SP00000006", "name": "富山駅南北自由通路（北側）", "lat": 36.7019159, "lng": 137.2132882, "linked": true},
+  {"id": "SP00000007", "name": "富山駅周辺", "lat": 36.7014156, "lng": 137.2133023, "linked": true},
+  {"id": "SP00000008", "name": "えききたぼっこ", "lat": 36.7022282, "lng": 137.213059, "linked": true},
+  {"id": "SP00000009", "name": "富山県民会館ホール", "lat": 36.6952024, "lng": 137.2127983, "linked": true},
+  {"id": "SP00000010", "name": "富山国際会議場", "lat": 36.6915636, "lng": 137.2112536, "linked": true},
+  {"id": "SP00000011", "name": "城址大通り（富山市役所前）", "lat": 36.6958617, "lng": 137.2130526, "linked": true},
+  {"id": "SP00000012", "name": "城址公園特設ステージ", "lat": 36.6931617, "lng": 137.2097722, "linked": true},
+  {"id": "SP00000013", "name": "城址大通り（城址公園前～松川塩倉橋）", "lat": 36.6947193, "lng": 137.2127492, "linked": false},
+  {"id": "SP00000014", "name": "富山県民会館ホール", "lat": 36.6951386, "lng": 137.2127872, "linked": true},
+  {"id": "SP00000015", "name": "富山市役所 光の広場", "lat": 36.6954529, "lng": 137.2137202, "linked": true},
+  {"id": "SP00000016", "name": "城址公園 芝生広場", "lat": 36.6931691, "lng": 137.2101844, "linked": true},
+  {"id": "SP00000017", "name": "城址公園", "lat": 36.6929614, "lng": 137.2104392, "linked": true},
+  {"id": "SP00000018", "name": "グランドプラザ", "lat": 36.689254, "lng": 137.2137343, "linked": true},
+  {"id": "SP00000019", "name": "城址大通り（富山市役所前）", "lat": 36.6956003, "lng": 137.2130302, "linked": true},
+  {"id": "SP00000020", "name": "城址大通り（富山市役所前）", "lat": 36.6953659, "lng": 137.2130061, "linked": true},
+  {"id": "SP00000021", "name": "大手モール", "lat": 36.6907024, "lng": 137.2113336, "linked": true},
+  {"id": "SP00000022", "name": "NiX Urban Skate Park", "lat": 36.7064858, "lng": 137.2157616, "linked": true},
+  {"id": "SP00000023", "name": "マル―ト", "lat": 36.7013849, "lng": 137.2124908, "linked": true},
+  {"id": "SP00000024", "name": "きときと市場とやマルシェイチバ", "lat": 36.7011574, "lng": 137.2139449, "linked": true},
+  {"id": "SP00000025", "name": "マリエとやま", "lat": 36.7005875, "lng": 137.2137196, "linked": true},
+  {"id": "SP00000026", "name": "SOGAWA BASE", "lat": 36.6896127, "lng": 137.2154275, "linked": true},
+  {"id": "SP00000027", "name": "ごっこぱーく", "lat": 36.7022686, "lng": 137.2129256, "linked": true},
+  {"id": "SP00000028", "name": "富山市役所展望塔", "lat": 36.695861, "lng": 137.2136036, "linked": true},
+  {"id": "SP00000029", "name": "ユウタウン総曲輪", "lat": 36.6898147, "lng": 137.2118381, "linked": true},
+  {"id": "SP00000030", "name": "富山県美術館", "lat": 36.7102792, "lng": 137.2103281, "linked": true},
+  {"id": "SP00000031", "name": "富山市ガラス美術館", "lat": 36.6886866, "lng": 137.2147912, "linked": true},
+  {"id": "SP00000032", "name": "富岩運河環水公園", "lat": 36.7090713, "lng": 137.2119339, "linked": true},
+  {"id": "SP00000033", "name": "環水テラス", "lat": 36.7111018, "lng": 137.2138819, "linked": true},
+  {"id": "SP00000034", "name": "ブールバール広場", "lat": 36.7028962, "lng": 137.2139818, "linked": true},
+  {"id": "SP00000035", "name": "富山城址公園", "lat": 36.6933066, "lng": 137.2108911, "linked": true},
+  {"id": "SP00000036", "name": "池田屋安兵衛商店", "lat": 36.6886272, "lng": 137.2176945, "linked": true},
+  {"id": "SP00000037", "name": "総曲輪通り商店街", "lat": 36.6896568, "lng": 137.2138326, "linked": true},
+  {"id": "SP00000038", "name": "西町商店街", "lat": 36.6889212, "lng": 137.2152679, "linked": true},
+  {"id": "SP00000039", "name": "中央通り商店街", "lat": 36.689489, "lng": 137.2170784, "linked": true},
+  {"id": "SP00000040", "name": "千石町通り商店街", "lat": 36.6889089, "lng": 137.2114758, "linked": true},
+  {"id": "SP00000041", "name": "リカーポケットみずはた", "lat": 36.7056135, "lng": 137.2152027, "linked": true},
+  {"id": "SP00000042", "name": "D&DEPARTMENT TOYAMA", "lat": 36.6949459, "lng": 137.2125997, "linked": true},
+  {"id": "SP00000043", "name": "総曲輪フェリオ", "lat": 36.6893633, "lng": 137.2135446, "linked": true},
+  {"id": "SP00000044", "name": "地場もん屋 総本店", "lat": 36.6896513, "lng": 137.2144096, "linked": true},
+  {"id": "SP00000045", "name": "ピアゴ富山西町店", "lat": 36.6878938, "lng": 137.2157559, "linked": true},
+  {"id": "SP00000046", "name": "大阪屋ショップ（北新町店）", "lat": 36.693944, "lng": 137.2203839, "linked": true},
+  {"id": "SP00000047", "name": "富山北口横丁", "lat": 36.704678, "lng": 137.2136285, "linked": true},
+  {"id": "SP00000048", "name": "竹の湯", "lat": 36.709726, "lng": 137.2171522, "linked": true},
+  {"id": "SP00000049", "name": "たから湯", "lat": 36.6942507, "lng": 137.2214392, "linked": true},
+  {"id": "SP00000050", "name": "星の湯", "lat": 36.6833833, "lng": 137.2153355, "linked": true},
+  {"id": "SP00000051", "name": "富山市郷土博物館", "lat": 36.6928106, "lng": 137.2114866, "linked": true},
+  {"id": "SP00000052", "name": "佐藤記念美術館", "lat": 36.6938711, "lng": 137.2120373, "linked": true},
+  {"id": "SP00000053", "name": "日枝神社", "lat": 36.6866228, "lng": 137.2137927, "linked": true},
+  {"id": "SP00000054", "name": "高志の国 文学館", "lat": 36.6950601, "lng": 137.2061966, "linked": true},
+  {"id": "SP00000055", "name": "AMAZING TOYAMA（富山駅前）", "lat": 36.700828, "lng": 137.2126645, "linked": true},
+  {"id": "SP00000056", "name": "AMAZING TOYAMA（城址公園）", "lat": 36.6922963, "lng": 137.20984, "linked": true},
+  {"id": "SP00000057", "name": "松川公園", "lat": 36.6944716, "lng": 137.212587, "linked": true},
+  {"id": "SP00000058", "name": "富山電気ビルディング", "lat": 36.6969698, "lng": 137.2162021, "linked": true},
+  {"id": "SP00000059", "name": "富山駅", "lat": 36.7012216, "lng": 137.2130844, "linked": true},
+  {"id": "SP00000060", "name": "総曲輪レガートスクエア", "lat": 36.6906908, "lng": 137.2104317, "linked": true}
+];
+
+/* =============================================================
+   共通
+   ============================================================= */
+const el = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat('ja-JP').format(n);
+const fmt1 = n => new Intl.NumberFormat('ja-JP',{maximumFractionDigits:1}).format(n);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const NA_SPOT = '(未割り当て)';
+
+/* 表示スポット名ごとの色（黄金角で色相を分散） */
+const SPOT_NAMES = [...new Set(SPOT_MASTER.map(s => s.name))];
+const COLOR = {};
+SPOT_NAMES.forEach((n,i) => { COLOR[n] = `hsl(${Math.round((i*137.508)%360)},72%,${[42,55,34][i%3]}%)`; });
+COLOR[NA_SPOT] = '#9aa3ad';
+const colorOf = name => COLOR[name] || '#555';
+
+/* 凸包（同じスポットに割り当てられた投稿の外周） */
+function convexHull(pts){
+  if(pts.length < 3) return pts.slice();
+  const p = pts.slice().sort((a,b) => a[1]-b[1] || a[0]-b[0]);
+  const cross = (o,a,b) => (a[1]-o[1])*(b[0]-o[0]) - (a[0]-o[0])*(b[1]-o[1]);
+  const lo=[], up=[];
+  for(const q of p){ while(lo.length>=2 && cross(lo[lo.length-2], lo[lo.length-1], q) <= 0) lo.pop(); lo.push(q); }
+  for(const q of p.slice().reverse()){ while(up.length>=2 && cross(up[up.length-2], up[up.length-1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0,-1).concat(up.slice(0,-1));
+}
+
+/* =============================================================
+   状態
+   ============================================================= */
+let POSTS = [];            // 投稿単位（exploded行を投稿IDでまとめたもの）
+let INDEX_NAMES = [];      // index の選択肢
+let IDX_SEL = null;
+let SPOT_SEL = new Set();  // 選択中の表示スポット名
+let FILTERED = [];         // index/score 条件に該当する投稿（matches付き）
+let map, layerPoints, layerHull, layerVoronoi, layerSpots;
+
+/* =============================================================
+   地図
+   ============================================================= */
+function initMap(){
+  if(typeof L === 'undefined'){ showError('地図ライブラリ（Leaflet）を読み込めませんでした。インターネット接続を確認してください。'); return; }
+  map = L.map('map', {scrollWheelZoom:true, preferCanvas:true}).setView(CONFIG.MAP_CENTER, CONFIG.MAP_ZOOM);
+  L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }
+  ).addTo(map);
+  layerVoronoi = L.layerGroup();
+  layerHull    = L.layerGroup().addTo(map);
+  layerPoints  = L.layerGroup().addTo(map);
+  layerSpots   = L.layerGroup().addTo(map);
+  buildVoronoi();
+}
+
+/* 勢力圏（ボロノイ図）…「この線の内側ならこのスポットが最寄り」という理論上の境界 */
+function buildVoronoi(){
+  if(typeof d3 === 'undefined' || !d3.Delaunay) return;
+  const uniq = [], seen = new Set();
+  SPOT_MASTER.forEach(s => { const k = s.lat+','+s.lng; if(!seen.has(k)){ seen.add(k); uniq.push(s); } });
+  const lats = uniq.map(s=>s.lat), lngs = uniq.map(s=>s.lng), pad = 0.01;
+  const k = Math.cos(36.7*Math.PI/180); // 経度方向の縮尺補正
+  const vor = d3.Delaunay.from(uniq, s => s.lng*k, s => s.lat)
+    .voronoi([(Math.min(...lngs)-pad)*k, Math.min(...lats)-pad, (Math.max(...lngs)+pad)*k, Math.max(...lats)+pad]);
+  uniq.forEach((s,i) => {
+    const poly = vor.cellPolygon(i); if(!poly) return;
+    L.polygon(poly.map(([x,y]) => [y, x/k]), {color:'#1f2733', weight:1.2, dashArray:'4 4', fillColor:colorOf(s.name), fillOpacity:.08, interactive:false}).addTo(layerVoronoi);
+  });
+}
+
+function renderMap(fit=false){
+  if(!map) return;
+  layerPoints.clearLayers(); layerHull.clearLayers(); layerSpots.clearLayers();
+  const showLabels = el('tgLabels').checked;
+  const counts = countBySpot(FILTERED);
+
+  SPOT_MASTER.forEach(s => {
+    if(!SPOT_SEL.has(s.name)) return;
+    const icon = L.divIcon({className:'', html:`<div class="spot-pin" style="border-color:${colorOf(s.name)}"></div>`, iconSize:[14,14], iconAnchor:[7,7]});
+    L.marker([s.lat, s.lng], {icon, zIndexOffset:1000})
+      .bindTooltip(esc(s.name), {className:'spot-label', permanent:showLabels, direction:'top', offset:[0,-8]})
+      .bindPopup(`<b>${esc(s.name)}</b><br>ID: ${esc(s.id)}${s.linked?'':'<br><span class="badge-warn">連携しない</span>'}<br>条件該当の投稿: ${fmt(counts[s.name]||0)}件`)
+      .addTo(layerSpots);
+  });
+
+  const byName = {}, bounds = [];
+  FILTERED.forEach(p => {
+    if(p.lat == null || !SPOT_SEL.has(p.spot)) return;
+    (byName[p.spot] ||= []).push([p.lat, p.lng]);
+    bounds.push([p.lat, p.lng]);
+    const warn = p.dist != null && p.dist > CONFIG.WARN_DISTANCE_M;
+    L.circleMarker([p.lat, p.lng], {radius:6, color: warn?'#c2410c':'#fff', weight: warn?2.5:1.2, fillColor:colorOf(p.spot), fillOpacity:.9})
+      .bindPopup(popupHtml(p)).addTo(layerPoints);
+  });
+  Object.entries(byName).forEach(([name, pts]) => {
+    const hull = convexHull(pts.concat(SPOT_MASTER.filter(s => s.name === name).map(s => [s.lat, s.lng])));
+    if(hull.length >= 3){
+      L.polygon(hull, {color:colorOf(name), weight:1.5, dashArray:'5 4', fillColor:colorOf(name), fillOpacity:.15})
+        .bindTooltip(`${esc(name)}（${pts.length}件）`, {sticky:true}).addTo(layerHull);
+    } else if(hull.length === 2){
+      L.polyline(hull, {color:colorOf(name), weight:2, dashArray:'5 4'}).addTo(layerHull);
+    }
+  });
+
+  if(fit && bounds.length) map.fitBounds(L.latLngBounds(bounds).pad(0.1), {maxZoom:17});
+  el('k_shown').textContent = fmt(bounds.length);
+}
+
+function popupHtml(p){
+  const extra = CONFIG.POPUP_COLS.filter(c => p.row[c]).map(c => {
+    const v = String(p.row[c]); return `<div><b>${esc(c)}:</b> ${esc(v.length>80 ? v.slice(0,80)+'…' : v)}</div>`;
+  }).join('');
+  const tags = p.matches.sort((a,b)=>b.score-a.score).map(m => `<span class="match-tag">${esc(m.index)} ${fmt1(m.score)}</span>`).join('');
+  const warn = p.dist > CONFIG.WARN_DISTANCE_M ? ' <span class="badge-warn">（遠い）</span>' : '';
+  return `<div style="border-left:4px solid ${colorOf(p.spot)};padding-left:8px">
+    <b>${esc(p.spot)}</b><br>
+    表示スポットまで: ${p.dist==null?'-':fmt1(p.dist)+' m'}${warn}<br>
+    <div style="margin:4px 0">${tags}</div>${extra}</div>`;
+}
+
+/* =============================================================
+   フィルター（index / score）
+   ============================================================= */
+function scoreRange(){
+  const mn = parseFloat(el('scoreMin').value), mx = parseFloat(el('scoreMax').value);
+  return [isFinite(mn)?mn:-Infinity, isFinite(mx)?mx:Infinity];
+}
+
+/* 条件：選択した index のいずれかで、score が範囲内の行が1つでもある投稿 */
+function applyFilter(){
+  const [mn, mx] = scoreRange();
+  FILTERED = [];
+  POSTS.forEach(p => {
+    const matches = p.items.filter(it => IDX_SEL.has(it.index) && it.score != null && it.score >= mn && it.score <= mx);
+    if(matches.length) FILTERED.push(Object.assign({}, p, {matches}));
+  });
+  const idxTxt = IDX_SEL.size === INDEX_NAMES.length ? 'すべて' : (IDX_SEL.size === 0 ? '未選択' : `${IDX_SEL.size}件選択`);
+  el('idxBtn').textContent = `${idxTxt} ▾`;
+  el('filterHint').textContent = `選択した index のいずれかで score が範囲内の投稿を表示（${fmt(FILTERED.length)} / ${fmt(POSTS.length)} 投稿）`;
+
+  const counts = countBySpot(FILTERED);
+  const far = FILTERED.filter(p => p.dist != null && p.dist > CONFIG.WARN_DISTANCE_M).length;
+  el('k_spots').textContent = fmt(Object.keys(counts).filter(n => n !== NA_SPOT).length);
+  el('k_warn').textContent = fmt(far);
+  el('k_warn_cap').textContent = `条件該当のうち 距離 ${CONFIG.WARN_DISTANCE_M}m 超`;
+  renderSpotList(); renderTable(); renderMap();
+}
+
+function countBySpot(list){ const c = {}; list.forEach(p => c[p.spot] = (c[p.spot]||0) + 1); return c; }
+
+function renderIndexList(){
+  el('idxList').innerHTML = INDEX_NAMES.map(n =>
+    `<label><input type="checkbox" data-idx="${esc(n)}" ${IDX_SEL.has(n)?'checked':''}> ${esc(n)}</label>`).join('');
+  el('idxList').querySelectorAll('input').forEach(cb => cb.addEventListener('change', e => {
+    const n = e.target.dataset.idx; e.target.checked ? IDX_SEL.add(n) : IDX_SEL.delete(n); applyFilter();
+  }));
+}
+
+/* =============================================================
+   サイドバー・表
+   ============================================================= */
+function allSpotNames(){
+  const all = countBySpot(POSTS);
+  const extra = Object.keys(all).filter(n => !SPOT_NAMES.includes(n));
+  return SPOT_NAMES.concat(extra);
+}
+
+function renderSpotList(){
+  const c = countBySpot(FILTERED);
+  const names = allSpotNames().sort((a,b) => (c[b]||0)-(c[a]||0) || a.localeCompare(b,'ja'));
+  el('spotList').innerHTML = names.map(n => `<label class="spot-item${c[n]?'':' zero'}">
+      <input type="checkbox" data-name="${esc(n)}" ${SPOT_SEL.has(n)?'checked':''}>
+      <i class="sw" style="background:${colorOf(n)}"></i><span>${esc(n)}</span><span class="cnt">${fmt(c[n]||0)}</span></label>`).join('');
+  el('spotList').querySelectorAll('input').forEach(cb => cb.addEventListener('change', e => {
+    const n = e.target.dataset.name; e.target.checked ? SPOT_SEL.add(n) : SPOT_SEL.delete(n); renderMap();
+  }));
+}
+
+function renderTable(){
+  const st = {};
+  FILTERED.forEach(p => {
+    const s = st[p.spot] ||= {n:0, d:[], sc:[]};
+    s.n++; if(p.dist != null) s.d.push(p.dist);
+    p.matches.forEach(m => s.sc.push(m.score));
+  });
+  const names = Object.keys(st).sort((a,b) => st[b].n - st[a].n);
+  const max = Math.max(1, ...names.map(n => st[n].n));
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+  el('spotTable').innerHTML = names.length ? names.map(n => {
+    const s = st[n], ad = avg(s.d), md = s.d.length ? Math.max(...s.d) : null, as = avg(s.sc);
+    return `<tr class="clickable" data-name="${esc(n)}">
+      <td><span class="sw-inline" style="background:${colorOf(n)}"></span>${esc(n)}</td>
+      <td class="num">${fmt(s.n)}</td>
+      <td><div class="bar" style="width:${s.n/max*100}%;background:${colorOf(n)}"></div></td>
+      <td class="num">${as==null?'-':fmt1(as)}</td>
+      <td class="num">${ad==null?'-':fmt1(ad)}</td>
+      <td class="num${md>CONFIG.WARN_DISTANCE_M?' badge-warn':''}">${md==null?'-':fmt1(md)}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="color:var(--dim)">条件に該当する投稿がありません</td></tr>';
+  el('spotTable').querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', () => zoomTo(tr.dataset.name)));
+}
+
+function zoomTo(name){
+  if(!map) return;
+  SPOT_SEL.add(name); renderSpotList(); renderMap();
+  const pts = FILTERED.filter(p => p.spot === name && p.lat != null).map(p => [p.lat, p.lng])
+    .concat(SPOT_MASTER.filter(s => s.name === name).map(s => [s.lat, s.lng]));
+  if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.4), {maxZoom:18});
+  el('map').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* =============================================================
+   データ読み込み（exploded行 → 投稿単位にまとめる）
+   ============================================================= */
+function ingest(text){
+  const res = Papa.parse(text.replace(/^\uFEFF/, ''), {header:true, skipEmptyLines:true});
+  const cols = res.meta.fields || [];
+  const need = [CONFIG.LAT_COL, CONFIG.LNG_COL, CONFIG.INDEX_COL, CONFIG.SCORE_COL, CONFIG.SPOT_COL, CONFIG.DIST_COL];
+  const missing = need.filter(c => !cols.includes(c));
+  if(missing.length){ showError(`CSVに必要な列がありません: <b>${esc(missing.join(', '))}</b><br>HTML冒頭の CONFIG の列名を確認してください。<br>CSVの列一覧: ${esc(cols.join(', '))}`); return; }
+  const idCol = cols.includes(CONFIG.POST_ID_COL) ? CONFIG.POST_ID_COL : cols[0];
+
+  const num = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
+  const byId = new Map();
+  res.data.forEach(r => {
+    const id = r[idCol];
+    if(!byId.has(id)){
+      const lat = num(r[CONFIG.LAT_COL]), lng = num(r[CONFIG.LNG_COL]);
+      byId.set(id, {id, row:r, lat:(lat!=null&&lng!=null)?lat:null, lng:(lat!=null&&lng!=null)?lng:null,
+        spot:(r[CONFIG.SPOT_COL]||'').trim() || NA_SPOT, dist:num(r[CONFIG.DIST_COL]), items:[]});
+    }
+    const idx = (r[CONFIG.INDEX_COL]||'').trim();
+    if(idx) byId.get(id).items.push({index: idx, score: num(r[CONFIG.SCORE_COL])});
+  });
+  POSTS = [...byId.values()];
+
+  // index の選択肢（出現順）と score の範囲
+  INDEX_NAMES = [...new Set(POSTS.flatMap(p => p.items.map(i => i.index)))];
+  IDX_SEL = new Set(INDEX_NAMES);
+  const scores = POSTS.flatMap(p => p.items.map(i => i.score)).filter(v => v != null);
+  const sMin = scores.length ? Math.min(...scores) : 0, sMax = scores.length ? Math.max(...scores) : 0;
+  el('scoreMin').value = CONFIG.DEFAULT_SCORE_MIN ?? sMin;
+  el('scoreMax').value = sMax;
+  el('scoreMin').min = el('scoreMax').min = sMin;
+  el('scoreMin').max = el('scoreMax').max = sMax;
+  SPOT_SEL = new Set(allSpotNames());
+
+  el('k_posts').textContent = fmt(POSTS.length);
+  el('k_posts_cap').textContent = `ユニーク投稿（CSV ${fmt(res.data.length)} 行・キー列: ${idCol}）`;
+  el('pulse').classList.add('ok');
+  el('statusText').textContent = 'CSV DATA CONNECTED';
+  el('fileHint').textContent = `読み込みファイル: ${CONFIG.DATA_FILE}　／　score 範囲 ${fmt1(sMin)}～${fmt1(sMax)}`;
+  el('footer').innerHTML = `参照: <code>${esc(CONFIG.DATA_FILE)}</code> ／ スポットマスタ（HTML内に埋め込み）。距離はCSVの「${esc(CONFIG.DIST_COL)}」列の値。index／score は exploded 行を投稿単位にまとめて判定。`;
+  if(res.errors.length) console.warn('CSV parse warnings:', res.errors);
+
+  renderIndexList(); applyFilter(); renderMap(true);
+}
+
+function showError(msg){ const b = el('error'); b.style.display = 'block'; b.innerHTML = msg; el('statusText').textContent = 'ERROR'; }
+
+/* =============================================================
+   イベント
+   ============================================================= */
+el('selAll').onclick  = () => { SPOT_SEL = new Set(allSpotNames()); renderSpotList(); renderMap(); };
+el('selNone').onclick = () => { SPOT_SEL = new Set(); renderSpotList(); renderMap(); };
+el('selUsed').onclick = () => { SPOT_SEL = new Set(Object.keys(countBySpot(FILTERED))); renderSpotList(); renderMap(); };
+el('idxBtn').onclick  = e => { e.stopPropagation(); el('idxPanel').classList.toggle('open'); };
+el('idxPanel').onclick = e => e.stopPropagation();
+document.addEventListener('click', () => el('idxPanel').classList.remove('open'));
+el('idxAll').onclick  = () => { IDX_SEL = new Set(INDEX_NAMES); renderIndexList(); applyFilter(); };
+el('idxNone').onclick = () => { IDX_SEL = new Set(); renderIndexList(); applyFilter(); };
+el('scoreMin').addEventListener('input', applyFilter);
+el('scoreMax').addEventListener('input', applyFilter);
+const toggle = (id, layer) => el(id).addEventListener('change', e => { if(!map) return; e.target.checked ? map.addLayer(layer()) : map.removeLayer(layer()); });
+toggle('tgPoints',  () => layerPoints);
+toggle('tgHull',    () => layerHull);
+toggle('tgVoronoi', () => layerVoronoi);
+toggle('tgSpots',   () => layerSpots);
+el('tgLabels').addEventListener('change', () => renderMap());
+
+/* =============================================================
+   起動：CONFIG.DATA_FILE を読み込む
+   ============================================================= */
+initMap();
+if(typeof Papa === 'undefined'){
+  showError('CSV読み込みライブラリ（PapaParse）を読み込めませんでした。インターネット接続を確認してください。');
+} else {
+  fetch(encodeURI(CONFIG.DATA_FILE))
+    .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+    .then(ingest)
+    .catch(e => showError(
+      `CSV「<b>${esc(CONFIG.DATA_FILE)}</b>」を読み込めませんでした（${esc(e.message)}）。<br>` +
+      `・HTMLと同じフォルダにあるか／ファイル名が CONFIG.DATA_FILE と一致しているか確認してください。<br>` +
+      `・HTMLをダブルクリック（file://）で開いている場合は読み込めません。フォルダで <code>python -m http.server</code> を実行し、http://localhost:8000/ から開いてください。`));
+}
+</script>
+</body>
+</html>
