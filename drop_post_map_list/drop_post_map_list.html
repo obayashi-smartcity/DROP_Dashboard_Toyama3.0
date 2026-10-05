@@ -4,23 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DROP 投稿一覧 × 投稿マップ</title>
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
-  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- noUiSlider -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css" />
-  <!-- 共通デザインシステム（編集禁止） -->
   <link rel="stylesheet" href="dashboard-common.css" />
-  <!-- ===================== ページ固有スタイル =====================
-       details_drop.html の PostMap / PostList を抜き出したカスタム版。
-       投稿＝紫（--rich）テーマ。性別・年齢は表示しない。
-  ============================================================== -->
   <style>
     .main { max-width: 1480px; margin: 0 auto; }
-    /* ---- フィルタ（投稿日のみ） ---- */
     .filter-panel { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; margin-bottom: var(--gap); border-top: 2px solid rgba(122,88,176,.55); }
     .filter-panel .f-title { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim); font-weight: 700; white-space: nowrap; }
     .filter-panel .slider-wrap { flex: 1; min-width: 260px; padding: 8px 10px 2px; }
@@ -31,13 +22,9 @@
     .reset-btn:hover { color: var(--text); background: var(--bg); border-color: var(--rich); }
     .filter-panel .noUi-connect { background: linear-gradient(90deg, #a98cd0, var(--rich)); }
     .filter-panel .noUi-horizontal .noUi-handle { border-color: var(--rich); }
-
-    /* ---- レイアウト：PC は 地図(左・追従) ＋ 一覧(右) ---- */
     .split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--gap); align-items: start; }
     .map-col { position: sticky; top: 16px; }
     .split .section-label { margin-top: 6px; }
-
-    /* ---- 地図 ---- */
     .map-box { height: calc(100vh - 210px); min-height: 460px; width: 100%; position: relative; background: var(--bg-b); }
     #map { height: 100%; width: 100%; }
     .leaflet-container { font-family: var(--font); background: #e9ebef; }
@@ -49,11 +36,8 @@
     .pin-pop .pp-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
     .pin-pop .pp-sen { font-size: 12px; color: var(--muted); line-height: 1.5; white-space: pre-wrap; max-height: 5.6em; overflow: hidden; }
     .pin-pop .pp-meta { margin-top: 8px; font-size: 11px; color: var(--dim); line-height: 1.5; font-variant-numeric: tabular-nums; }
-    /* 通常ピン（紫） */
     .pin { width: 16px; height: 16px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(16,24,40,.4); border-radius: 50%; background: var(--rich); transition: opacity .2s; }
-    /* 何か選択中は他のピンを薄く */
     .map-box.has-sel .pin { opacity: .35; }
-    /* 選択中ピン（強調：大きく＋波紋） */
     .pin-sel-wrap { position: relative; width: 34px; height: 34px; }
     .pin-sel { position: absolute; inset: 5px; border-radius: 50%; background: var(--rich); border: 3px solid #fff; box-shadow: 0 0 0 3px var(--rich), 0 4px 12px rgba(16,24,40,.45); }
     .pin-sel-wrap::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(122,88,176,.45); animation: ripple 1.4s ease-out infinite; }
@@ -63,8 +47,6 @@
     .map-legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; background: var(--rich); }
     .map-legend i.sel { width: 14px; height: 14px; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--rich); }
     .clear-sel { margin-left: auto; }
-
-    /* ---- 投稿一覧（性別・年齢なし／投稿場所あり） ---- */
     .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
     .post-card { background: #fff; border: 1px solid var(--stroke); cursor: pointer; transition: .15s; display: flex; flex-direction: column; overflow: hidden; position: relative; scroll-margin: 80px; }
     .post-card:hover { border-color: var(--rich); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,24,40,.08); }
@@ -85,12 +67,7 @@
     .more-btn { border: 1px solid var(--stroke); background: #fff; color: var(--muted); font-family: var(--font); font-size: 13px; padding: 10px 28px; cursor: pointer; border-radius: 0; transition: .15s; }
     .more-btn:hover { color: var(--text); background: var(--bg); border-color: var(--rich); }
     .modal-place { margin-top: 10px; font-size: 13px; color: var(--rich); font-weight: 700; }
-
-    @media (max-width: 1080px) {
-      .split { grid-template-columns: 1fr; }
-      .map-col { position: static; }
-      .map-box { height: 440px; min-height: 0; }
-    }
+    @media (max-width: 1080px) { .split { grid-template-columns: 1fr; } .map-col { position: static; } .map-box { height: 440px; min-height: 0; } }
     @media (max-width: 760px)  { .map-box { height: 360px; } .post-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; } .post-card .pc-img { height: 120px; } }
     @media (max-width: 430px)  { .map-box { height: 320px; } .post-grid { grid-template-columns: 1fr 1fr; } .filter-panel .slider-wrap { min-width: 0; width: 100%; } }
   </style>
@@ -104,8 +81,6 @@
       </div>
       <div class="status"><span class="pulse"></span> latest timestamp: <b>&nbsp;<span id="metaUpdated2">–</span></b></div>
     </div>
-
-    <!-- フィルタ（投稿日のみ） -->
     <div class="panel filter-panel">
       <div class="f-title">投稿日</div>
       <div class="time-readout" id="timeReadout">–</div>
@@ -113,13 +88,9 @@
       <div class="f-count" id="filterCount">–</div>
       <button class="reset-btn" id="resetBtn">条件をリセット</button>
     </div>
-
     <div class="split">
-      <!-- ============ 地図 ============ -->
       <section class="map-col" id="map-section">
-        <div class="section-label">
-          <h2>Post Map <span class="note">ピン ⇄ 一覧 が連動</span></h2>
-        </div>
+        <div class="section-label"><h2>Post Map <span class="note">ピン ⇄ 一覧 が連動</span></h2></div>
         <div class="panel" style="border-top:2px solid rgba(122,88,176,.55);">
           <div class="map-box" id="mapBox"><div id="map"></div></div>
           <div class="map-legend">
@@ -129,13 +100,8 @@
           </div>
         </div>
       </section>
-
-      <!-- ============ 投稿一覧 ============ -->
       <section id="list-section">
-        <div class="section-label">
-          <h2>Post List</h2>
-          <div class="meta list-head-meta" id="listMeta">–</div>
-        </div>
+        <div class="section-label"><h2>Post List</h2><div class="meta list-head-meta" id="listMeta">–</div></div>
         <div class="panel" style="border-top:2px solid rgba(122,88,176,.55);">
           <div class="post-grid" id="postGrid">
             <div class="empty-state" style="grid-column:1/-1"><b>読み込み中…</b>json/mart_action_drop.json を取得しています</div>
@@ -144,13 +110,11 @@
         </div>
       </section>
     </div>
-
     <div class="footer-note">
-      データソース: <code>json/mart_action_drop.json</code> ・ 一覧をクリック → 地図上の投稿場所を強調表示 ／ ピンをクリック → 該当投稿を一覧で強調表示
+      データソース: <code id="srcName">json/mart_action_drop.json</code> ・ 一覧をクリック → 地図上の投稿場所を強調表示 ／ ピンをクリック → 該当投稿を一覧で強調表示
     </div>
   </main>
 
-  <!-- ============ 投稿詳細モーダル（性別・年齢なし） ============ -->
   <div id="postModal" class="post-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modalUser">
     <div class="post-modal-inner" role="document">
       <button id="modalClose" class="post-modal-close" type="button" aria-label="投稿詳細を閉じる">&times;</button>
@@ -171,23 +135,20 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
   <script>
-  /* =====================================================================
-   *  設定（ここだけ触ればOK）
-   * ===================================================================== */
+  /* ===================== 設定（ここだけ触ればOK） ===================== */
   const MAP_CFG = (typeof DASHBOARD_CONFIG !== "undefined" && DASHBOARD_CONFIG.map) ? DASHBOARD_CONFIG.map : {
     cartoApiKey: "",
     tile: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   };
   const CONFIG = {
-    // 読み込むJSON（上から順に試す）。ファイル名が変わったらここだけ修正
+    // 自動で読みに行くJSON（上から順に試す）。ファイル名が変わったらここだけ修正
     dataSources: ["json/mart_action_drop.json", "mart_action_drop.json"],
-    // 投稿場所の表示に使う列（上から順に、値が入っている最初の列を採用）
-    // どれも無い／空の場合は「緯度, 経度」を表示
-    placeFields: ["表示スポット名", "spot_name", "place_name", "event_name"],
+    // 地図に使う緯度経度の列（元の details_drop.html / mart_action_drop.json と同じ列）
+    latField: "latitude",
+    lngField: "longitude",
     map: {
-      center: [34.6905, 135.5023], zoom: 13, minZoom: 10, maxZoom: 18,
-      focusZoom: 17,                 // 一覧クリック時のズーム
+      center: [34.6905, 135.5023], zoom: 13, minZoom: 10, maxZoom: 18, focusZoom: 17,
       cartoApiKey: MAP_CFG.cartoApiKey, tile: MAP_CFG.tile, attribution: MAP_CFG.attribution
     },
     pageSize: 24
@@ -196,55 +157,36 @@
   const el = (id) => document.getElementById(id);
   const setText = (id, v) => { const e = el(id); if (e) e.textContent = v; };
   const esc = (t) => (t == null ? "" : String(t)).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const state = { dmin: null, dmax: null, limit: CONFIG.pageSize, selId: null };
+  const state = { dmin: 0, dmax: 0, limit: CONFIG.pageSize, selId: null };
   let POSTS = [], DATES = [], FILTERED = [], map, markerLayer, markerById = {}, sliderBuilt = false;
-
   const PIN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
-
-  function pickPlace(r) {
-    for (const f of CONFIG.placeFields) {
-      const v = r[f];
-      if (v != null && String(v).trim() !== "") return String(v).trim();
-    }
-    return "";
-  }
 
   function normalize(records) {
     const out = [];
     for (const r of records) {
-      const lat = r.latitude == null || r.latitude === "" ? null : Number(r.latitude);
-      const lng = r.longitude == null || r.longitude === "" ? null : Number(r.longitude);
-      if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) continue;
-      const place = pickPlace(r);
+      const rawLat = r[CONFIG.latField], rawLng = r[CONFIG.lngField];
+      if (rawLat == null || rawLat === "" || rawLng == null || rawLng === "") continue;
+      const lat = Number(rawLat), lng = Number(rawLng);
+      if (isNaN(lat) || isNaN(lng)) continue;
       out.push({
         id: String(r.artwork_id), s: r.sentence || "", n: r.account_name || "",
-        t: r.post_dated_at || "",
-        date: r.post_date || (r.post_dated_at || "").slice(0, 10),
+        t: r.post_dated_at || "", date: r.post_date || (r.post_dated_at || "").slice(0, 10),
         lat, lng, img: r.image_file_path_thumbnail || "",
-        place: place || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        // 投稿場所＝元JSONの緯度経度
+        place: `${lat.toFixed(5)}, ${lng.toFixed(5)}`
       });
     }
     return out;
   }
 
-  // ---- マーカー ----
   const pinIcon = () => L.divIcon({ className: "", html: `<div class="pin"></div>`, iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10] });
   const selIcon = () => L.divIcon({ className: "", html: `<div class="pin-sel-wrap"><div class="pin-sel"></div></div>`, iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16] });
-
   function popupHtml(p) {
     const img = p.img ? `<img src="${esc(p.img)}" loading="lazy" onerror="this.style.display='none'">` : "";
-    return `<div class="pin-pop">${img}<div class="pp-body">
-      <div class="pp-name">${esc(p.n)}</div>
-      <div class="pp-sen">${esc(p.s)}</div>
-      <div class="pp-meta">${esc(p.t)}<br>📍 ${esc(p.place)}</div>
-    </div></div>`;
+    return `<div class="pin-pop">${img}<div class="pp-body"><div class="pp-name">${esc(p.n)}</div><div class="pp-sen">${esc(p.s)}</div><div class="pp-meta">${esc(p.t)}<br>📍 ${esc(p.place)}</div></div></div>`;
   }
-
   function pass(p) {
-    if (p.date) {
-      const di = DATES.indexOf(p.date);
-      if (di < 0 || di < state.dmin || di > state.dmax) return false;
-    }
+    if (p.date) { const di = DATES.indexOf(p.date); if (di < 0 || di < state.dmin || di > state.dmax) return false; }
     return true;
   }
 
@@ -253,18 +195,13 @@
     const img = el("modalImg"), noImage = el("modalNoImage");
     if (p.img) { img.src = p.img; img.alt = (p.n ? p.n + "さんの" : "") + "投稿画像"; img.hidden = false; noImage.hidden = true; }
     else { img.removeAttribute("src"); img.hidden = true; noImage.hidden = false; }
-    setText("modalUser", p.n || "投稿者名なし");
-    setText("modalTime", p.t || "");
-    setText("modalPlace", "📍 " + p.place);
-    setText("modalText", p.s || "");
-    el("postModal").classList.add("show");
-    el("postModal").setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
-    el("modalClose").focus();
+    setText("modalUser", p.n || "投稿者名なし"); setText("modalTime", p.t || "");
+    setText("modalPlace", "📍 " + p.place); setText("modalText", p.s || "");
+    el("postModal").classList.add("show"); el("postModal").setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open"); el("modalClose").focus();
   }
   function closePostModal() {
-    el("postModal").classList.remove("show");
-    el("postModal").setAttribute("aria-hidden", "true");
+    el("postModal").classList.remove("show"); el("postModal").setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
   }
   el("modalClose").addEventListener("click", closePostModal);
@@ -272,90 +209,60 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && el("postModal").classList.contains("show")) closePostModal(); });
   el("modalImg").addEventListener("error", () => { el("modalImg").hidden = true; el("modalNoImage").hidden = false; });
 
-  // ---- 選択（地図・一覧の双方向連動） ----
-  function isInViewport(node) {
-    const r = node.getBoundingClientRect();
-    return r.top >= 0 && r.bottom <= window.innerHeight;
-  }
-
-  // from: "list"（一覧クリック）/ "map"（ピンクリック）
+  // ---- 選択（地図⇄一覧の双方向連動） ----
+  const isInViewport = (n) => { const r = n.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; };
   function selectPost(id, from) {
-    const p = FILTERED.find(x => x.id === id);
-    if (!p) return;
-    // 以前の選択ピンを戻す
-    if (state.selId && markerById[state.selId]) {
-      markerById[state.selId].setIcon(pinIcon()).setZIndexOffset(0);
-    }
+    const p = FILTERED.find(x => x.id === id); if (!p) return;
+    if (state.selId && markerById[state.selId]) markerById[state.selId].setIcon(pinIcon()).setZIndexOffset(0);
     state.selId = id;
     const mk = markerById[id];
     if (mk) mk.setIcon(selIcon()).setZIndexOffset(1000);
-    el("mapBox").classList.add("has-sel");
-    el("clearSelBtn").hidden = false;
-
+    el("mapBox").classList.add("has-sel"); el("clearSelBtn").hidden = false;
     highlightCard(id, from === "map");
-
     if (from === "list") {
-      // 地図が画面外（スマホ等の縦並び時）なら地図までスクロール
-      const mapBox = el("mapBox");
-      if (!isInViewport(mapBox)) mapBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!isInViewport(el("mapBox"))) el("mapBox").scrollIntoView({ behavior: "smooth", block: "center" });
       map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), CONFIG.map.focusZoom), { duration: .6 });
       if (mk) map.once("moveend", () => mk.openPopup());
     } else {
       openPostModal(p);
     }
   }
-
   function clearSelection() {
     if (state.selId && markerById[state.selId]) markerById[state.selId].setIcon(pinIcon()).setZIndexOffset(0).closePopup();
     state.selId = null;
-    el("mapBox").classList.remove("has-sel");
-    el("clearSelBtn").hidden = true;
+    el("mapBox").classList.remove("has-sel"); el("clearSelBtn").hidden = true;
     el("postGrid").querySelectorAll(".post-card.hl").forEach(c => c.classList.remove("hl"));
   }
   el("clearSelBtn").addEventListener("click", clearSelection);
-
   function highlightCard(id, scroll) {
-    const grid = el("postGrid");
-    // ピンから選んだ投稿が「さらに表示」の先にある場合は表示件数を広げる
     const idx = FILTERED.findIndex(x => x.id === id);
-    if (idx >= state.limit) {
-      state.limit = Math.ceil((idx + 1) / CONFIG.pageSize) * CONFIG.pageSize;
-      renderList();
-    }
+    if (idx >= state.limit) { state.limit = Math.ceil((idx + 1) / CONFIG.pageSize) * CONFIG.pageSize; renderList(); }
+    const grid = el("postGrid");
     grid.querySelectorAll(".post-card.hl").forEach(c => c.classList.remove("hl"));
     const card = grid.querySelector(`.post-card[data-id="${CSS.escape(id)}"]`);
-    if (card) {
-      card.classList.add("hl");
-      if (scroll) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+    if (card) { card.classList.add("hl"); if (scroll) card.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
   }
 
   // ---- 描画 ----
   function render() {
-    FILTERED = POSTS.filter(pass).sort((a, b) => new Date(b.t || b.date || 0) - new Date(a.t || a.date || 0)); // 新しい順
-    markerLayer.clearLayers();
-    markerById = {};
+    FILTERED = POSTS.filter(pass).sort((a, b) => new Date(b.t || b.date || 0) - new Date(a.t || a.date || 0));
+    markerLayer.clearLayers(); markerById = {};
     FILTERED.forEach(p => {
       const m = L.marker([p.lat, p.lng], { icon: pinIcon() }).bindPopup(popupHtml(p));
       m.on("click", () => { m.closePopup(); selectPost(p.id, "map"); });
-      m.addTo(markerLayer);
-      markerById[p.id] = m;
+      m.addTo(markerLayer); markerById[p.id] = m;
     });
-    // フィルタで選択中の投稿が消えたら選択解除
     if (state.selId && !markerById[state.selId]) clearSelection();
     else if (state.selId) markerById[state.selId].setIcon(selIcon()).setZIndexOffset(1000);
-
     el("filterCount").innerHTML = `表示 <b>${FILTERED.length}</b> 件 / 全 ${POSTS.length} 件`;
     renderList();
   }
-
   function renderList() {
     const shown = FILTERED.slice(0, state.limit);
     setText("listMeta", `${FILTERED.length} 件中 ${shown.length} 件を表示`);
     if (!FILTERED.length) {
-      el("postGrid").innerHTML = `<div class="empty-state" style="grid-column:1/-1"><b>該当する投稿がありません</b>投稿日の条件を変更してください</div>`;
-      el("moreWrap").innerHTML = "";
-      return;
+      el("postGrid").innerHTML = `<div class="empty-state" style="grid-column:1/-1"><b>該当する投稿がありません</b>投稿日の条件、または緯度経度の列を確認してください</div>`;
+      el("moreWrap").innerHTML = ""; return;
     }
     el("postGrid").innerHTML = shown.map(p => {
       const img = p.img ? `<img class="pc-img" src="${esc(p.img)}" loading="lazy" onerror="this.style.visibility='hidden'">` : `<div class="pc-img"></div>`;
@@ -365,39 +272,24 @@
         <div class="pc-body">
           <div class="pc-sen">${esc(p.s)}</div>
           <div class="pc-place">${PIN_SVG}<span title="${esc(p.place)}">${esc(p.place)}</span></div>
-          <div class="pc-foot">
-            <span class="pc-name">${esc(p.n)}</span>
-            <span class="pc-time">${esc(p.t)}</span>
-          </div>
+          <div class="pc-foot"><span class="pc-name">${esc(p.n)}</span><span class="pc-time">${esc(p.t)}</span></div>
         </div>
       </article>`;
     }).join("");
-
-    el("postGrid").querySelectorAll(".post-card").forEach(card => {
-      card.addEventListener("click", () => selectPost(card.getAttribute("data-id"), "list"));
-    });
-    el("postGrid").querySelectorAll(".pc-zoom").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const p = FILTERED.find(x => x.id === btn.getAttribute("data-zoom"));
-        if (p) openPostModal(p);
-      });
-    });
-
-    el("moreWrap").innerHTML = (shown.length < FILTERED.length)
-      ? `<button class="more-btn" id="moreBtn">さらに表示（残り ${FILTERED.length - shown.length} 件）</button>` : "";
-    const mb = el("moreBtn");
-    if (mb) mb.addEventListener("click", () => { state.limit += CONFIG.pageSize; renderList(); });
+    el("postGrid").querySelectorAll(".post-card").forEach(card => card.addEventListener("click", () => selectPost(card.getAttribute("data-id"), "list")));
+    el("postGrid").querySelectorAll(".pc-zoom").forEach(btn => btn.addEventListener("click", (e) => {
+      e.stopPropagation(); const p = FILTERED.find(x => x.id === btn.getAttribute("data-zoom")); if (p) openPostModal(p);
+    }));
+    el("moreWrap").innerHTML = (shown.length < FILTERED.length) ? `<button class="more-btn" id="moreBtn">さらに表示（残り ${FILTERED.length - shown.length} 件）</button>` : "";
+    const mb = el("moreBtn"); if (mb) mb.addEventListener("click", () => { state.limit += CONFIG.pageSize; renderList(); });
   }
 
   // ---- 投稿日スライダー ----
   function buildSlider() {
     const slider = el("timeSlider"), readout = el("timeReadout");
+    if (sliderBuilt) { slider.noUiSlider.destroy(); sliderBuilt = false; }
     const maxIdx = Math.max(DATES.length - 1, 0);
-    noUiSlider.create(slider, {
-      start: [0, maxIdx], connect: true, step: 1, range: { min: 0, max: maxIdx || 1 },
-      format: { to: v => Math.round(v), from: v => Math.round(v) }
-    });
+    noUiSlider.create(slider, { start: [0, maxIdx], connect: true, step: 1, range: { min: 0, max: maxIdx || 1 }, format: { to: v => Math.round(v), from: v => Math.round(v) } });
     slider.noUiSlider.on("update", (vals) => {
       state.dmin = +vals[0]; state.dmax = +vals[1];
       readout.innerHTML = `<b>${esc(DATES[state.dmin] || "–")}</b> 〜 <b>${esc(DATES[state.dmax] || "–")}</b>`;
@@ -408,48 +300,103 @@
   el("resetBtn").addEventListener("click", () => {
     state.dmin = 0; state.dmax = Math.max(DATES.length - 1, 0); state.limit = CONFIG.pageSize;
     if (sliderBuilt) el("timeSlider").noUiSlider.set([0, state.dmax]);
-    clearSelection();
-    render();
-    fitAll();
+    clearSelection(); render(); fitAll();
   });
 
-  // ---- 地図初期化 ----
+  // ---- 地図 ----
   map = L.map("map", { center: CONFIG.map.center, zoom: CONFIG.map.zoom, minZoom: CONFIG.map.minZoom, maxZoom: CONFIG.map.maxZoom, scrollWheelZoom: true });
-  const tileUrl = CONFIG.map.cartoApiKey
-    ? CONFIG.map.tile + (CONFIG.map.tile.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(CONFIG.map.cartoApiKey)
-    : CONFIG.map.tile;
+  const tileUrl = CONFIG.map.cartoApiKey ? CONFIG.map.tile + (CONFIG.map.tile.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(CONFIG.map.cartoApiKey) : CONFIG.map.tile;
   L.tileLayer(tileUrl, { attribution: CONFIG.map.attribution, maxZoom: CONFIG.map.maxZoom }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
+  function fitAll() { const pts = FILTERED.map(p => [p.lat, p.lng]); if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] }); }
 
-  function fitAll() {
-    const pts = FILTERED.map(p => [p.lat, p.lng]);
-    if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+  // ---- 起動（自動fetch / 手動選択 共通） ----
+  function startWithJson(json, srcName) {
+    const records = Array.isArray(json) ? json : (json.records || []);
+    POSTS = normalize(records);
+    DATES = Array.from(new Set(POSTS.map(p => p.date).filter(Boolean))).sort();
+    state.dmin = 0; state.dmax = Math.max(DATES.length - 1, 0); state.limit = CONFIG.pageSize;
+    setText("metaUpdated2", records.map(r => r.post_dated_at).filter(Boolean).sort().pop() || "–");
+    if (srcName) setText("srcName", srcName);
+    buildSlider(); clearSelection(); render();
+    setTimeout(() => { map.invalidateSize(); fitAll(); }, 200);
   }
 
-  // ---- JSON 読み込み（dataSources を上から順に試行） ----
-  async function loadData() {
-    let last;
-    for (const src of CONFIG.dataSources) {
-      try { const r = await fetch(src); if (!r.ok) throw new Error(src + " : HTTP " + r.status); return await r.json(); }
-      catch (e) { last = e; }
+  // ---- 寛容な JSON パーサ ----
+  // Python(pandas / json.dump)出力で起きがちな「厳密なJSONではない書き方」を補正してから読む。
+  //   ・末尾カンマ        {"a":1,}  [1,2,]
+  //   ・NaN / Infinity / -Infinity / undefined  → null
+  //   ・先頭の BOM
+  // 文字列（"..."）の中身は一切書き換えない。
+  function parseJsonLenient(text) {
+    text = text.replace(/^\uFEFF/, "");
+    try { return JSON.parse(text); } catch (_) { /* 補正して再挑戦 */ }
+    let out = "", i = 0, inStr = false;
+    const n = text.length;
+    while (i < n) {
+      const c = text[i];
+      if (inStr) {
+        out += c;
+        if (c === "\\") { out += text[i + 1] ?? ""; i += 2; continue; }
+        if (c === '"') inStr = false;
+        i++; continue;
+      }
+      if (c === '"') { inStr = true; out += c; i++; continue; }
+      if (c === ",") {
+        // 次の非空白文字が } か ] なら末尾カンマとして捨てる
+        let k = i + 1; while (k < n && /\s/.test(text[k])) k++;
+        if (text[k] === "}" || text[k] === "]") { i++; continue; }
+      }
+      const rest = text.slice(i, i + 9);
+      const m = /^(-?Infinity|NaN|undefined)/.exec(rest);
+      if (m) { out += "null"; i += m[1].length; continue; }
+      out += c; i++;
     }
-    throw last;
+    return JSON.parse(out);   // それでもダメなら元のエラーを投げる
+  }
+  // エラー位置（line X column Y / position N）の前後数行を切り出す
+  function errorSnippet(text, msg) {
+    const lines = text.split(/\r?\n/);
+    let ln = null;
+    const m1 = /line (\d+)/.exec(msg);
+    const m2 = /position (\d+)/.exec(msg);
+    if (m1) ln = +m1[1];
+    else if (m2) ln = text.slice(0, +m2[1]).split(/\r?\n/).length;
+    if (!ln) return lines.slice(0, 8).join("\n");
+    const from = Math.max(1, ln - 4), to = Math.min(lines.length, ln + 1);
+    const res = [];
+    for (let k = from; k <= to; k++) res.push(`${k === ln ? "→" : " "} ${k}: ${lines[k - 1].slice(0, 160)}`);
+    return res.join("\n");
   }
 
+  // ---- JSON 読み込み（dataSources を上から順に試し、失敗理由を記録） ----
+  async function loadData() {
+    const tried = [];
+    for (const src of CONFIG.dataSources) {
+      const url = new URL(src, location.href).href;
+      try {
+        const r = await fetch(src, { cache: "no-store" });
+        if (!r.ok) { tried.push(`${url} → HTTP ${r.status}`); continue; }
+        const text = await r.text();
+        try {
+          return { json: parseJsonLenient(text), src };
+        } catch (pe) {
+          tried.push(`${url} → JSON の書式エラー: ${pe.message}\n--- 該当箇所 ---\n${errorSnippet(text, pe.message)}`);
+        }
+      } catch (e) { tried.push(`${url} → ${e.message}`); }
+    }
+    const err = new Error("JSONが見つかりません"); err.tried = tried; throw err;
+  }
   loadData()
-    .then(json => {
-      const records = json.records || [];
-      POSTS = normalize(records);
-      DATES = Array.from(new Set(POSTS.map(p => p.date).filter(Boolean))).sort();
-      state.dmin = 0; state.dmax = Math.max(DATES.length - 1, 0);
-      setText("metaUpdated2", records.map(r => r.post_dated_at).filter(Boolean).sort().pop() || "–");
-      buildSlider();
-      render();
-      setTimeout(() => { map.invalidateSize(); fitAll(); }, 200);
-    })
+    .then(({ json, src }) => startWithJson(json, src))
     .catch(err => {
-      el("postGrid").innerHTML = `<div class="empty-state" style="grid-column:1/-1"><b>データを読み込めませんでした</b>${esc(String(err.message))}<br>ローカルで開く場合は簡易サーバー経由で表示してください（file:// では fetch できません）</div>`;
       console.error(err);
+      const list = (err.tried || [String(err.message)]).map(t => `<li style="text-align:left;word-break:break-all;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;">${esc(t)}</li>`).join("");
+      el("postGrid").innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:20px;"><div>
+        <b>データを読み込めませんでした</b>以下のURLを試しました：
+        <ul style="margin:8px 0;padding-left:18px;">${list}</ul>
+        HTTP 404 の場合は、JSONの置き場所・ファイル名を確認してください（HTMLと同じ階層の <code>json/</code> フォルダ内）。
+      </div></div>`;
     });
   </script>
 </body>
