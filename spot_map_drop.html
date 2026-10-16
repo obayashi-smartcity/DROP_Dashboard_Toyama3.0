@@ -109,15 +109,15 @@ footer code{color:var(--muted)}
       <button type="button" id="selNone">すべて解除</button>
       <button type="button" id="selUsed">該当ありのみ</button>
     </div>
-    <p class="filter-hint">色＝表示スポット名。数字は現在の index / score 条件に当てはまる投稿数です。</p>
+    <p class="filter-hint">色＝表示スポット名。数字は現在の指標／スコア条件に当てはまる投稿数です。指標列がない場合は全投稿を表示します。</p>
     <div id="spotList" class="spot-list"></div>
     <div class="side-foot">富山まちなかイベント<br>DROP投稿 × 表示スポット割り当て確認</div>
   </aside>
 
   <main>
     <div class="topbar">
-      <div><h1>DROP Spot Map</h1><p>投稿地点に割り当てた「表示スポット名」を、index／score で絞り込んで地図上で確認</p></div>
-      <div class="status"><span id="pulse" class="pulse"></span><span id="statusText">CSV 読み込み中…</span></div>
+      <div><h1>DROP Spot Map</h1><p>投稿地点に割り当てた「表示スポット名」を、JSONデータから地図上で確認</p></div>
+      <div class="status"><span id="pulse" class="pulse"></span><span id="statusText">JSON 読み込み中…</span></div>
     </div>
 
     <div id="error" class="error"></div>
@@ -125,7 +125,7 @@ footer code{color:var(--muted)}
     <div class="filters">
       <div class="flt-row">
         <div class="flt-block">
-          <span class="ttl">index（指標・複数選択可）</span>
+          <span class="ttl">指標（複数選択可）</span>
           <div class="idx-box">
             <button type="button" class="idx-btn" id="idxBtn">すべて ▾</button>
             <div class="idx-panel" id="idxPanel">
@@ -135,7 +135,7 @@ footer code{color:var(--muted)}
           </div>
         </div>
         <div class="flt-block">
-          <span class="ttl">score（範囲）</span>
+          <span class="ttl">スコア（範囲）</span>
           <div class="score-in"><input type="number" id="scoreMin" step="1"> 以上 ～ <input type="number" id="scoreMax" step="1"> 以下</div>
         </div>
         <span class="hint" id="filterHint"></span>
@@ -152,7 +152,7 @@ footer code{color:var(--muted)}
 
     <section class="grid kpis">
       <div class="card kpi"><span class="k-label">投稿数</span><b class="k-val" id="k_posts">-</b><span class="k-cap" id="k_posts_cap">ユニーク投稿</span></div>
-      <div class="card kpi c-attr"><span class="k-label">条件該当・地図表示</span><b class="k-val" id="k_shown">-</b><span class="k-cap">index／score 条件＋選択中スポット</span></div>
+      <div class="card kpi c-attr"><span class="k-label">条件該当・地図表示</span><b class="k-val" id="k_shown">-</b><span class="k-cap">指標／スコア条件＋選択中スポット</span></div>
       <div class="card kpi c-acq"><span class="k-label">該当スポット数</span><b class="k-val" id="k_spots">-</b><span class="k-cap">条件該当の投稿がある表示スポット名</span></div>
       <div class="card kpi c-warn"><span class="k-label">要確認（距離）</span><b class="k-val" id="k_warn">-</b><span class="k-cap" id="k_warn_cap">-</span></div>
     </section>
@@ -170,7 +170,7 @@ footer code{color:var(--muted)}
       <div id="map" class="map-box"></div>
     </div>
 
-    <div class="section-label"><h2>Spot Summary<span class="note">index／score 条件に該当する投稿で集計・行クリックで地図をズーム</span></h2></div>
+    <div class="section-label"><h2>Spot Summary<span class="note">指標／スコア条件に該当する投稿で集計・行クリックで地図をズーム</span></h2></div>
     <div class="card">
       <div class="table-wrap">
         <table>
@@ -184,25 +184,24 @@ footer code{color:var(--muted)}
 <footer id="footer"></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
 <script>
 /* =============================================================
    ★ 設定（ファイル名が変わったら DATA_FILE だけ書き換えればOK）
    ============================================================= */
 const CONFIG = {
-  // 読み込むCSV（HTMLと同じフォルダに置く）
-  DATA_FILE: 'MART_DROP_JoinAttribute_scored(画像込判定)_spot2.0_attach.csv',
+  // 読み込むJSON（HTMLと同じフォルダに置く）
+  DATA_FILE: 'mart_action_drop_user_scored_spot_attach_edited.json',
 
   // 列名
   POST_ID_COL: 'artwork_id',      // 投稿を一意に識別する列（無ければ先頭列を自動使用）
   LAT_COL:     'latitude',
   LNG_COL:     'longitude',
-  INDEX_COL:   'index',           // 指標名
-  SCORE_COL:   'index_score',           // 指標スコア
+  // 指標スコア列は Index_ で始まる列を自動検出します。
+  SCORE_PREFIX: 'Index_',
   SPOT_COL:    '表示スポット名',
   DIST_COL:    'スポット距離_m',   // 表示スポットまでの距離（CSVの値をそのまま使用）
-  POPUP_COLS:  ['sentence', 'account_name', 'age_group', 'gender'], // ポップアップ表示列（無い列は無視）
+  POPUP_COLS:  ['sentence', 'account_name', 'age_group', 'gender', 'area_label'], // ポップアップ表示列（無い列は無視）
 
   // 初期表示の score 下限（null ならデータの最小値）
   DEFAULT_SCORE_MIN: 5,
@@ -311,7 +310,7 @@ function convexHull(pts){
 /* =============================================================
    状態
    ============================================================= */
-let POSTS = [];            // 投稿単位（exploded行を投稿IDでまとめたもの）
+let POSTS = [];            // 投稿単位（JSONの1レコードを1投稿として扱う）
 let INDEX_NAMES = [];      // index の選択肢
 let IDX_SEL = new Set();   // 選択中の index
 let SPOT_SEL = new Set();  // 選択中の表示スポット名
@@ -395,7 +394,7 @@ function popupHtml(p){
   const extra = CONFIG.POPUP_COLS.filter(c => p.row[c]).map(c => {
     const v = String(p.row[c]); return `<div><b>${esc(c)}:</b> ${esc(v.length>80 ? v.slice(0,80)+'…' : v)}</div>`;
   }).join('');
-  const tags = p.matches.sort((a,b)=>b.score-a.score).map(m => `<span class="match-tag">${esc(m.index)} ${fmt1(m.score)}</span>`).join('');
+  const tags = p.matches.length ? p.matches.slice().sort((a,b)=>b.score-a.score).map(m => `<span class="match-tag">${esc(m.index)} ${fmt1(m.score)}</span>`).join('') : '<span class="match-tag">指標スコア列なし</span>';
   const warn = p.dist > CONFIG.WARN_DISTANCE_M ? ' <span class="badge-warn">（遠い）</span>' : '';
   return `<div style="border-left:4px solid ${colorOf(p.spot)};padding-left:8px">
     <b>${esc(p.spot)}</b><br>
@@ -416,13 +415,22 @@ function applyFilter(){
   const [mn, mx] = scoreRange();
   FILTERED = [];
   POSTS.forEach(p => {
+    // Index_*列がないJSONでは指標フィルターを無効化し、全投稿を対象にする
+    if(!INDEX_NAMES.length){
+      FILTERED.push(Object.assign({}, p, {matches:[]}));
+      return;
+    }
     const matches = p.items.filter(it => IDX_SEL.has(it.index) && it.score != null && it.score >= mn && it.score <= mx);
     if(matches.length) FILTERED.push(Object.assign({}, p, {matches}));
   });
-  const idxTxt = IDX_SEL.size === INDEX_NAMES.length ? 'すべて' : (IDX_SEL.size === 0 ? '未選択' : `${IDX_SEL.size}件選択`);
+  const idxTxt = !INDEX_NAMES.length ? '指標列なし' : (IDX_SEL.size === INDEX_NAMES.length ? 'すべて' : (IDX_SEL.size === 0 ? '未選択' : `${IDX_SEL.size}件選択`));
   el('idxBtn').textContent = `${idxTxt} ▾`;
-  el('filterHint').textContent = `選択した index のいずれかで score が範囲内の投稿を表示（${fmt(FILTERED.length)} / ${fmt(POSTS.length)} 投稿）`;
-
+  el('idxBtn').disabled = !INDEX_NAMES.length;
+  el('scoreMin').disabled = !INDEX_NAMES.length;
+  el('scoreMax').disabled = !INDEX_NAMES.length;
+  el('filterHint').textContent = !INDEX_NAMES.length
+    ? `このJSONには ${CONFIG.SCORE_PREFIX} で始まる指標列がないため、指標／スコア絞り込みを行わず全投稿を表示（${fmt(FILTERED.length)} 投稿）`
+    : `選択した指標のいずれかでスコアが範囲内の投稿を表示（${fmt(FILTERED.length)} / ${fmt(POSTS.length)} 投稿）`;
   const counts = countBySpot(FILTERED);
   const far = FILTERED.filter(p => p.dist != null && p.dist > CONFIG.WARN_DISTANCE_M).length;
   el('k_spots').textContent = fmt(Object.keys(counts).filter(n => n !== NA_SPOT).length);
@@ -430,7 +438,6 @@ function applyFilter(){
   el('k_warn_cap').textContent = `条件該当のうち 距離 ${CONFIG.WARN_DISTANCE_M}m 超`;
   renderSpotList(); renderTable(); renderMap();
 }
-
 function countBySpot(list){ const c = {}; list.forEach(p => c[p.spot] = (c[p.spot]||0) + 1); return c; }
 
 function renderIndexList(){
@@ -496,50 +503,64 @@ function zoomTo(name){
 /* =============================================================
    データ読み込み（exploded行 → 投稿単位にまとめる）
    ============================================================= */
-function ingest(text){
-  const res = Papa.parse(text.replace(/^\uFEFF/, ''), {header:true, skipEmptyLines:true});
-  const cols = res.meta.fields || [];
-  const need = [CONFIG.LAT_COL, CONFIG.LNG_COL, CONFIG.INDEX_COL, CONFIG.SCORE_COL, CONFIG.SPOT_COL, CONFIG.DIST_COL];
-  const missing = need.filter(c => !cols.includes(c));
-  if(missing.length){ showError(`CSVに必要な列がありません: <b>${esc(missing.join(', '))}</b><br>HTML冒頭の CONFIG の列名を確認してください。<br>CSVの列一覧: ${esc(cols.join(', '))}`); return; }
-  const idCol = cols.includes(CONFIG.POST_ID_COL) ? CONFIG.POST_ID_COL : cols[0];
+/* =============================================================
+   データ読み込み（JSON：1レコード＝1投稿）
+   ============================================================= */
+function ingestJson(data){
+  const rows = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : null);
+  if(!rows){ showError('JSONのルートが配列ではありません。1レコード＝1投稿の配列を指定してください。'); return; }
+  if(!rows.length){ showError('JSONにレコードがありません。'); return; }
 
-  const num = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
-  const byId = new Map();
-  res.data.forEach(r => {
-    const id = r[idCol];
-    if(!byId.has(id)){
-      const lat = num(r[CONFIG.LAT_COL]), lng = num(r[CONFIG.LNG_COL]);
-      byId.set(id, {id, row:r, lat:(lat!=null&&lng!=null)?lat:null, lng:(lat!=null&&lng!=null)?lng:null,
-        spot:(r[CONFIG.SPOT_COL]||'').trim() || NA_SPOT, dist:num(r[CONFIG.DIST_COL]), items:[]});
-    }
-    const idx = (r[CONFIG.INDEX_COL]||'').trim();
-    if(idx) byId.get(id).items.push({index: idx, score: num(r[CONFIG.SCORE_COL])});
+  const allCols = [...new Set(rows.flatMap(r => Object.keys(r || {})))];
+  const need = [CONFIG.POST_ID_COL, CONFIG.LAT_COL, CONFIG.LNG_COL, CONFIG.SPOT_COL, CONFIG.DIST_COL];
+  const missing = need.filter(c => !allCols.includes(c));
+  if(missing.length){
+    showError(`JSONに必要な列がありません: <b>${esc(missing.join(', '))}</b><br>HTML冒頭の CONFIG の列名を確認してください。<br>JSONの列一覧: ${esc(allCols.join(', '))}`);
+    return;
+  }
+
+  const num = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
+  const scoreCols = allCols.filter(c => c.startsWith(CONFIG.SCORE_PREFIX));
+
+  POSTS = rows.map((r, i) => {
+    const lat = num(r[CONFIG.LAT_COL]), lng = num(r[CONFIG.LNG_COL]);
+    return {
+      id: r[CONFIG.POST_ID_COL] ?? `row-${i+1}`,
+      row: r,
+      lat: (lat != null && lng != null) ? lat : null,
+      lng: (lat != null && lng != null) ? lng : null,
+      spot: String(r[CONFIG.SPOT_COL] ?? '').trim() || NA_SPOT,
+      dist: num(r[CONFIG.DIST_COL]),
+      items: scoreCols.map(col => ({
+        index: col.slice(CONFIG.SCORE_PREFIX.length),
+        score: num(r[col]),
+        sourceColumn: col
+      }))
+    };
   });
-  POSTS = [...byId.values()];
 
-  // index の選択肢（出現順）と score の範囲
-  INDEX_NAMES = [...new Set(POSTS.flatMap(p => p.items.map(i => i.index)))];
+  INDEX_NAMES = scoreCols.map(c => c.slice(CONFIG.SCORE_PREFIX.length));
   IDX_SEL = new Set(INDEX_NAMES);
   const scores = POSTS.flatMap(p => p.items.map(i => i.score)).filter(v => v != null);
-  const sMin = scores.length ? Math.min(...scores) : 0, sMax = scores.length ? Math.max(...scores) : 0;
-  el('scoreMin').value = CONFIG.DEFAULT_SCORE_MIN ?? sMin;
+  const sMin = scores.length ? Math.min(...scores) : 0;
+  const sMax = scores.length ? Math.max(...scores) : 10;
+  el('scoreMin').value = scores.length ? (CONFIG.DEFAULT_SCORE_MIN ?? sMin) : sMin;
   el('scoreMax').value = sMax;
   el('scoreMin').min = el('scoreMax').min = sMin;
   el('scoreMin').max = el('scoreMax').max = sMax;
   SPOT_SEL = new Set(allSpotNames());
 
   el('k_posts').textContent = fmt(POSTS.length);
-  el('k_posts_cap').textContent = `ユニーク投稿（CSV ${fmt(res.data.length)} 行・キー列: ${idCol}）`;
+  el('k_posts_cap').textContent = `ユニーク投稿（JSON ${fmt(POSTS.length)}件・キー列: ${CONFIG.POST_ID_COL}）`;
   el('pulse').classList.add('ok');
-  el('statusText').textContent = 'CSV DATA CONNECTED';
-  el('fileHint').textContent = `読み込みファイル: ${CONFIG.DATA_FILE}　／　score 範囲 ${fmt1(sMin)}～${fmt1(sMax)}`;
-  el('footer').innerHTML = `参照: <code>${esc(CONFIG.DATA_FILE)}</code> ／ スポットマスタ（HTML内に埋め込み）。距離はCSVの「${esc(CONFIG.DIST_COL)}」列の値。index／score は exploded 行を投稿単位にまとめて判定。`;
-  if(res.errors.length) console.warn('CSV parse warnings:', res.errors);
+  el('statusText').textContent = 'JSON DATA CONNECTED';
+  el('fileHint').textContent = scores.length
+    ? `読み込みファイル: ${CONFIG.DATA_FILE} ／ スコア範囲 ${fmt1(sMin)}～${fmt1(sMax)}`
+    : `読み込みファイル: ${CONFIG.DATA_FILE} ／ Index_* 指標列なし（全投稿表示）`;
+  el('footer').innerHTML = `参照: <code>${esc(CONFIG.DATA_FILE)}</code> ／ スポットマスタ（HTML内に埋め込み）。距離はJSONの「${esc(CONFIG.DIST_COL)}」列の値。${scores.length ? '指標／スコアは投稿内の Index_* 列を使用。' : 'このJSONには Index_* 列がないため、指標／スコアによる絞り込みは無効。'}`;
 
   renderIndexList(); applyFilter(); renderMap(true);
 }
-
 function showError(msg){ const b = el('error'); b.style.display = 'block'; b.innerHTML = msg; el('statusText').textContent = 'ERROR'; }
 
 /* =============================================================
@@ -565,18 +586,18 @@ el('tgLabels').addEventListener('change', () => renderMap());
 /* =============================================================
    起動：CONFIG.DATA_FILE を読み込む
    ============================================================= */
+/* =============================================================
+   起動：CONFIG.DATA_FILE のJSONを読み込む
+   ============================================================= */
 initMap();
-if(typeof Papa === 'undefined'){
-  showError('CSV読み込みライブラリ（PapaParse）を読み込めませんでした。インターネット接続を確認してください。');
-} else {
-  fetch(encodeURI(CONFIG.DATA_FILE))
-    .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
-    .then(ingest)
-    .catch(e => showError(
-      `CSV「<b>${esc(CONFIG.DATA_FILE)}</b>」を読み込めませんでした（${esc(e.message)}）。<br>` +
-      `・HTMLと同じフォルダにあるか／ファイル名が CONFIG.DATA_FILE と一致しているか確認してください。<br>` +
-      `・HTMLをダブルクリック（file://）で開いている場合は読み込めません。フォルダで <code>python -m http.server</code> を実行し、http://localhost:8000/ から開いてください。`));
-}
+fetch(encodeURI(CONFIG.DATA_FILE))
+  .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  .then(ingestJson)
+  .catch(e => showError(
+    `JSON「<b>${esc(CONFIG.DATA_FILE)}</b>」を読み込めませんでした（${esc(e.message)}）。<br>` +
+    `・HTMLとJSONを同じフォルダに置き、ファイル名が CONFIG.DATA_FILE と一致しているか確認してください。<br>` +
+    `・HTMLをダブルクリック（file://）で開いている場合は読み込めません。フォルダで <code>python -m http.server</code> を実行し、ローカルサーバーから開いてください。`
+  ));
 </script>
 </body>
 </html>
